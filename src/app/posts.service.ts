@@ -1,7 +1,7 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Subject, throwError } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { pipe, Subject, throwError } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
 import { Post } from './post.model';
 
 @Injectable({
@@ -14,7 +14,11 @@ export class PostsService {
 
   createAndStorePost(title: string, content: string) {
     const postData: Post = { title: title, content: content };
-    this.http.post<{ name: string }>('https://angular-complete-guide-4dbb8-default-rtdb.europe-west1.firebasedatabase.app/posts.json', postData)
+    this.http.post<{ name: string }>('https://angular-complete-guide-4dbb8-default-rtdb.europe-west1.firebasedatabase.app/posts.json', postData,
+      {
+        observe: 'response'
+      }
+    )
       .subscribe(responseData => {
         console.log(responseData);
       }, error => {
@@ -25,10 +29,10 @@ export class PostsService {
   fetchPosts() {
     return this.http
       .get<{ [key: string]: Post }>('https://angular-complete-guide-4dbb8-default-rtdb.europe-west1.firebasedatabase.app/posts.json',
-      {
-        headers: new HttpHeaders({'Custom-Header': 'Hello'}),
-        params: new HttpParams().set('print', 'pretty')
-      }
+        {
+          headers: new HttpHeaders({ 'Custom-Header': 'Hello' }),
+          params: new HttpParams().set('print', 'pretty')
+        }
       )
       .pipe(map(responseData => {
         const postsArray: Post[] = [];
@@ -39,13 +43,23 @@ export class PostsService {
         }
         return postsArray;
       }),
-      catchError(errorRes => {
-        return throwError(errorRes);
-      })
+        catchError(errorRes => {
+          return throwError(errorRes);
+        })
       );
   }
 
   deletePosts() {
-    return this.http.delete('https://angular-complete-guide-4dbb8-default-rtdb.europe-west1.firebasedatabase.app/posts.json');
+    return this.http.delete('https://angular-complete-guide-4dbb8-default-rtdb.europe-west1.firebasedatabase.app/posts.json',
+      {
+        observe: 'events',
+        responseType: 'text'
+      }
+    ).pipe(tap(event => {
+      console.log(event);
+      if (event.type === HttpEventType.Response) {
+        console.log(event.body);
+      }
+    }));
   }
 }
